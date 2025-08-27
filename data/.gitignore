@@ -1,0 +1,4 @@
+dhis/*
+!dhis/dhis.conf
+postgres/*
+!.gitignore

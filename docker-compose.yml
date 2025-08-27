@@ -1,0 +1,88 @@
+services:
+  nginx-proxy:
+    container_name: nginx-proxy
+    image: jwilder/nginx-proxy:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs:ro
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+    labels:
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy"
+    networks:
+      - proxy
+    restart: unless-stopped
+
+  letsencrypt-companion:
+    container_name: letsencrypt-companion
+    image: jrcs/letsencrypt-nginx-proxy-companion:latest
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy
+    restart: unless-stopped
+
+  dhis2:
+    container_name: dhis2
+    environment:
+      DHIS2_HOME: /DHIS2_home
+      JAVA_OPTS: -Xms2048m -Xmx4096m
+      TZ: Africa/Nairobi
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: dhis2
+      POSTGRES_USER: dhis
+      POSTGRES_PASSWORD: dhis
+      SERVER_HTTPS: "on"
+      SERVER_BASE_URL: https://your-domain.com
+      VIRTUAL_HOST: your-domain.com
+      LETSENCRYPT_HOST: your-domain.com
+      LETSENCRYPT_EMAIL: your-email@example.com
+    depends_on:
+      - postgres
+    image: dhis2/core:2.42
+    networks:
+      - dhis2
+      - proxy
+    platform: linux/amd64
+    restart: unless-stopped
+    volumes:
+      - ./data/dhis:/DHIS2_home
+      - ./data/dhis/dhis.conf:/opt/dhis2/dhis.conf
+
+  postgres:
+    container_name: postgres
+    environment:
+      POSTGRES_DB: dhis2
+      POSTGRES_USER: dhis
+      POSTGRES_PASSWORD: dhis
+    image: postgis/postgis:16-3.5
+    networks:
+      - dhis2
+    platform: linux/amd64
+    # ports:
+    #   - 5432:5432
+    restart: unless-stopped
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+volumes:
+  certs:
+  vhost:
+  html:
+
+networks:
+  dhis2:
+    driver: bridge
+    name: dhis2
+  proxy:
+    driver: bridge
+    name: nginx-proxy
