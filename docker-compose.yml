@@ -30,6 +30,14 @@ services:
       - proxy
     restart: unless-stopped
 
+  dhis2-init:
+    container_name: dhis2-init
+    image: busybox:latest
+    command: ["sh", "-c", "chown -R nobody:nobody /DHIS2_home"]
+    volumes:
+      - ./data/dhis:/DHIS2_home
+    restart: no
+
   dhis2:
     container_name: dhis2
     environment:
@@ -47,6 +55,7 @@ services:
       LETSENCRYPT_HOST: your-domain.com
       LETSENCRYPT_EMAIL: your-email@example.com
     depends_on:
+      - dhis2-init
       - postgres
     image: dhis2/core:2.42
     networks:
@@ -56,7 +65,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/dhis:/DHIS2_home
-      - ./data/dhis/dhis.conf:/opt/dhis2/dhis.conf
 
   postgres:
     container_name: postgres
